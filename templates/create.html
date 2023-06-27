@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block title %}Add New User{% endblock %}
+
+{% block content %}
+<h1>Create a user</h1>
+<form method="post", action="/users/new">
+    <label>First Name:</label><br><input type="text", name="first name"><br>
+    <label>Last Name:</label><br><input type="text", name="last name"><br>
+    <label>Profile Picture (optional):</label><br><input type="text", name="image url", value="https://static-00.iconduck.com/assets.00/discord-icon-1024x1024-bwiz92wb.png"><br>
+    <button>Add</button>
+</form>
+<a href="/users"><button>Go Back</button></a>
+{% endblock %}
