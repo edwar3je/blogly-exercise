@@ -12,4 +12,11 @@
     <button>Delete</button>
 </form>
 <a href="/users"><button>Go Back</button></a>
+<h1>Posts</h1>
+<ul>
+    {% for post in posts %}
+    <li><a href="/posts/{{ post.id }}">{{ post.title }}</a></li>
+    {% endfor %}
+</ul>
+<a href="/users/{{ user.id }}/posts/new"><button>Add Post</button></a> 
 {% endblock %} 
