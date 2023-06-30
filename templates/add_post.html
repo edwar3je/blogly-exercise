@@ -7,6 +7,9 @@
 <form action="/users/{{ user.id }}/posts/new", method="post">
     <label>Title<input type="text" name="title"></label><br>
     <label>Content<input type="text" name="content"></label><br>
+    {% for tag in tags %} 
+    {{ tag.name }}<input type="checkbox", name="selected_tags", value="{{ tag.id }}"><br> 
+    {% endfor %} 
     <a href="/users/{{ user.id }}"><button>Cancel</button></a>
     <button type="submit">Add</button>
 </form>

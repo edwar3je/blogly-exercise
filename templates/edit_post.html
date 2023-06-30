@@ -4,9 +4,16 @@
 
 {% block content %}
 <h1>Edit Post</h1>
-<form action="/posts/{{ post.id }}/edit", method="post">
-    <label>Title<input type="text", name="title", value="{{ post.title }}"></label><br>
-    <label>Post Content<input type="text", name="content", value="{{ post.content }}"></label><br>
+<form action="/posts/{{ post.id }}/edit" method="post">
+    <label>Title<input type="text" name="title" value="{{ post.title }}"></label><br>
+    <label>Post Content<input type="text" name="content" value="{{ post.content }}"></label><br>
+    {% for tag in tags %} 
+    {% if tag in rel_tags %}
+    <input type="checkbox" name="selected_tags" value="{{ tag.id }}" checked>{{ tag.name }}<br>
+    {% else %}
+    <input type="checkbox" name="selected_tags" value="{{ tag.id }}">{{ tag.name }}<br>
+    {% endif %} 
+    {% endfor %} 
     <button>Edit</button>
 </form>
 <a href="/users/{{ user.id }}"><button>Cancel</button></a>

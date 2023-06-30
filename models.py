@@ -30,11 +30,32 @@ class Post(db.Model):
     last_edited = db.Column(db.DateTime, default=datetime.now)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     us_er = db.relationship('User')
+    tags = db.relationship('Tag', secondary='tagged_posts', backref='post')
+    p_tags = db.relationship('PostTag', backref='p_ost')
 
     def __init__(self, title, content, user_id):
         self.title = title
         self.content = content
         self.user_id = user_id
+
+class Tag(db.Model):
+    __tablename__= 'tags'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(20), nullable=False, unique=True)
+    posts = db.relationship('Post', secondary='tagged_posts', backref='tag')
+    t_posts = db.relationship('PostTag', backref='t_ag')
+
+    def __init__(self, name):
+        self.name = name
+
+class PostTag(db.Model):
+    __tablename__= 'tagged_posts'
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), primary_key=True)
+    tag_id = db.Column(db.Integer, db.ForeignKey('tags.id'), primary_key=True)
+
+    def __init__(self, post_id, tag_id):
+        self.post_id = post_id
+        self.tag_id = tag_id
 
 # Used to initialize 'users' table with data
 def initData():
@@ -51,4 +72,25 @@ def initData():
     db.session.add(sample_post_1)
     db.session.add(sample_post_2)
     db.session.add(sample_post_3)
+    # add a few rows for 'tags'
+    sample_tag_1 = Tag(name='Fun')
+    sample_tag_2 = Tag(name='Meme')
+    sample_tag_3 = Tag(name='Cute')
+    db.session.add(sample_tag_1)
+    db.session.add(sample_tag_2)
+    db.session.add(sample_tag_3)
+    db.session.commit()
+    # add a few rows for 'taggedposts'
+    sample_tag_post_1 = PostTag(post_id=1, tag_id=1)
+    sample_tag_post_2 = PostTag(post_id=1, tag_id=2)
+    sample_tag_post_3 = PostTag(post_id=2, tag_id=1)
+    sample_tag_post_4 = PostTag(post_id=2, tag_id=3)
+    sample_tag_post_5 = PostTag(post_id=3, tag_id=2)
+    sample_tag_post_6 = PostTag(post_id=3, tag_id=3)
+    db.session.add(sample_tag_post_1)
+    db.session.add(sample_tag_post_2)
+    db.session.add(sample_tag_post_3)
+    db.session.add(sample_tag_post_4)
+    db.session.add(sample_tag_post_5)
+    db.session.add(sample_tag_post_6)
     db.session.commit()

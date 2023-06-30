@@ -6,6 +6,11 @@
 <h1>{{ post.title }}</h1><br>
 <p>{{ post.content }}</p><br>
 <p><i>By {{ user.first_name }} {{ user.last_name }}</i></p><br>
+<label>Tags:
+    {% for tag in tags %} 
+    <a href="/tags/{{ tag.id }}"><button>{{ tag.name }}</button></a>
+    {% endfor %} 
+</label><br>
 <a href="/users/{{ user.id }}"><button>Cancel</button></a>
 <a href="/posts/{{ post.id }}/edit"><button>Edit</button></a>
 <form action="/posts/{{ post.id }}/delete", method="post">

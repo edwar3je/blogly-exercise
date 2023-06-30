@@ -1,7 +1,7 @@
 """Blogly application."""
 
 from flask import Flask, request, render_template, redirect, flash, session
-from models import db, connect_db, User, initData, Post
+from models import db, connect_db, User, initData, Post, Tag, PostTag
 from datetime import datetime
 
 app = Flask(__name__)
@@ -85,7 +85,7 @@ def handle_edit_user(ind):
         db.session.commit()
     return redirect('/users')
 
-# Deletes all of the user's posts (to not hit foreign key constraint) along with the user and redirects 
+# Deletes all of the user's tagged posts, then posts (to not hit foreign key constraint) along with the user and redirects 
 # the user to '/users'.
 @app.route('/users/<ind>/delete', methods=["POST"])
 def deleteUser(ind):
@@ -94,7 +94,12 @@ def deleteUser(ind):
         all_posts = Post.query.filter(Post.user_id == path_id).all()
         if all_posts:
             for post in all_posts:
-                post.query.delete()
+                rel_post_tags = PostTag.query.filter(PostTag.post_id == post.id).all()
+                if rel_post_tags:
+                    for rel_post_tag in rel_post_tags:
+                        db.session.delete(rel_post_tag)
+                        db.session.commit()
+                db.session.delete(post)
                 db.session.commit()
         User.query.filter_by(id=path_id).delete()
         db.session.commit()
@@ -106,7 +111,8 @@ def display_add_post(users_id):
     path_id = int(request.path.replace('/users/', '').replace('/posts/new', ''))
     with app.app_context():
         current_user = User.query.filter_by(id=path_id).first()
-    return render_template('add_post.html', user=current_user)
+        all_tags = Tag.query.all()
+    return render_template('add_post.html', user=current_user, tags=all_tags)
 
 # Upon click, takes the information from the form, creates a new Post instance, adds/commits
 # to db.session and redirects user to the user detail page
@@ -114,12 +120,25 @@ def display_add_post(users_id):
 def handle_add_post(users_id):
     title = request.form.get('title')
     content = request.form.get('content')
+    # captures a list of values from the form (these will be used to add rows to the tagged_posts table)
+    selected_tags = request.form.getlist('selected_tags')
+    # captures the user_id from the url
     path_id = int(request.path.replace('/users/', '').replace('/posts/new', ''))
+    # creates the string for the redirect
     red = '/users/' + str(path_id)
     with app.app_context():
+        # creates the new post instance and commits it to the posts table
         new_post = Post(title, content, path_id)
         db.session.add(new_post)
         db.session.commit()
+        # upon committing the add, must add row(s) to ref table tagged_posts (PostTag)
+        if selected_tags:
+            new_post_id = len(Post.query.all())
+            print(new_post_id)
+            for selected_tag in selected_tags:
+                new_tagged_post = PostTag(new_post_id, int(selected_tag))
+                db.session.add(new_tagged_post)
+                db.session.commit()       
     return redirect(red)
 
 # Displays a post from a user and allows user to either go back to the user detail page,
@@ -128,9 +147,11 @@ def handle_add_post(users_id):
 def display_post(post_id):
     path_id = int(request.path.replace('/posts/', ''))
     with app.app_context():
+        cur_post = Post.query.get(path_id)
         current_post = Post.query.filter_by(id=path_id).first()
         current_user = User.query.filter(User.id == current_post.user_id).first()
-    return render_template('post.html', post=current_post, user=current_user)
+        all_rel_tags = cur_post.tags
+    return render_template('post.html', post=current_post, user=current_user, tags=all_rel_tags)
 
 # Displays a form that allows a user to either edit the information in the post, or go back to the
 # user detail page
@@ -140,7 +161,9 @@ def display_edit_post(post_id):
     with app.app_context():
         current_post = Post.query.filter_by(id=path_id).first()
         current_user = User.query.filter(User.id == current_post.user_id).first()
-    return render_template('edit_post.html', post=current_post, user=current_user)
+        all_tags = Tag.query.all()
+        rel_tags = Post.query.get(path_id).tags
+    return render_template('edit_post.html', post=current_post, user=current_user, tags=all_tags, rel_tags=rel_tags)
 
 # Upon click, takes the information from the form, edits the Post instance, adds/commits to
 # db.session and redirects user to the post
@@ -149,6 +172,8 @@ def handle_edit_post(post_id):
     path_id = int(request.path.replace('/posts/', '').replace('/edit', ''))
     title = request.form.get('title')
     content = request.form.get('content')
+    # extract a list of all the tags selected
+    selected_tags = request.form.getlist('selected_tags')
     with app.app_context():
         current_post = Post.query.get(path_id)
         red = '/posts/' + str(current_post.id)
@@ -156,15 +181,107 @@ def handle_edit_post(post_id):
         current_post.content = content
         current_post.last_edited = datetime.now()
         db.session.commit()
+        # from here, try to select a list of rows from PostTag where PostTag.post_id == Post.id
+        # then add a boolean to check if the list has any values. If it does, delete all the rows.
+        rel_tagged_posts = current_post.p_tags
+        if rel_tagged_posts:
+            for rel_tagged_post in rel_tagged_posts:
+                db.session.delete(rel_tagged_post)
+                db.session.commit()
+        # If tags have been selected, create a new row for each tag with the post id (CHECK what the value of selected_tag is)
+        if selected_tags:
+            for selected_tag in selected_tags:
+                new_post_tag = PostTag(path_id, int(selected_tag))
+                db.session.add(new_post_tag)
+                db.session.commit()
     return redirect(red)
 
 # Upon click, deletes the post instance and redirects user to the user detail page
 @app.route('/posts/<post_id>/delete', methods=["POST"])
-def deletePost(post_id):
+def delete_post(post_id):
     path_id = int(request.path.replace('/posts/', '').replace('/delete', ''))
     with app.app_context():
+        cur_post = Post.query.get(path_id)
+        rel_post_tags = cur_post.p_tags
+        for rel_post_tag in rel_post_tags:
+            db.session.delete(rel_post_tag)
+            db.session.commit()
         current_post = Post.query.filter_by(id=path_id).first()
         red = '/users/' + str(current_post.user_id)
         Post.query.filter_by(id=path_id).delete()
         db.session.commit()
     return redirect(red)
+
+# Lists all tags, with links to the tag detail page.
+@app.route('/tags')
+def display_tags():
+    with app.app_context():
+        all_tags = Tag.query.all()
+    return render_template('tags.html', tags=all_tags)
+
+# Shows details about a tag (mainly posts that feature the tag). Has links to edit form 
+# and to delete the tag.
+@app.route('/tags/<tag_id>')
+def display_tag_details(tag_id):
+    path_id = int(request.path.replace('/tags/', ''))
+    with app.app_context():
+        c_tag = Tag.query.get(path_id)
+        current_tag = Tag.query.filter(Tag.id == path_id).first()
+        rel_posts = c_tag.posts
+        print('---------------------------------')
+        for rel_post in rel_posts:
+            print(rel_post.title)
+        print('---------------------------------')
+    return render_template('tag_details.html', tag=current_tag, posts=rel_posts)
+
+# Shows a form to add a new tag
+@app.route('/tags/new')
+def display_add_tag_form():
+    return render_template('add_tag.html')
+
+# Processes add form, adds tag and redirects to tag list
+@app.route('/tags/new', methods=["POST"])
+def process_add_tag_form():
+    n_name = request.form.get('name')
+    with app.app_context():
+        new_tag = Tag(name=n_name)
+        db.session.add(new_tag)
+        db.session.commit()
+    return redirect('/tags')
+
+# Shows a form to edit tag
+@app.route('/tags/<tag_id>/edit')
+def display_edit_tag_form(tag_id):
+    path_id = int(request.path.replace('/tags/', '').replace('/edit', ''))
+    with app.app_context():
+        current_tag = Tag.query.filter(Tag.id == path_id).first()
+    return render_template('edit_tag.html', tag=current_tag)
+
+# Processes edit form, edits tag and redirects to tag list
+@app.route('/tags/<tag_id>/edit', methods=["POST"])
+def process_edit_tag_form(tag_id):
+    path_id = int(request.path.replace('/tags/', '').replace('/edit', ''))
+    e_name = request.form.get('name')
+    with app.app_context():
+        current_tag = Tag.query.filter(Tag.id == path_id).first()
+        current_tag.name = e_name
+        db.session.commit()
+    return redirect('/tags')
+
+# Deletes a tag and redirects to tag list
+@app.route('/tags/<tag_id>/delete', methods=["POST"])
+def delete_tag(tag_id):
+    path_id = int(request.path.replace('/tags/', '').replace('/delete', ''))
+    with app.app_context():
+        c_tag = Tag.query.get(path_id)
+        current_tag = Tag.query.filter(Tag.id == path_id)
+        all_tag_posts = c_tag.t_posts
+        for tag_post in all_tag_posts:
+            print('-------------------------------')
+            print(f'{tag_post.post_id}, {tag_post.tag_id}')
+            print('-------------------------------')
+            db.session.delete(tag_post)
+            db.session.commit()
+        current_tag.delete()
+        db.session.commit()
+    return redirect('/tags')
